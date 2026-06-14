@@ -20,6 +20,7 @@ sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 
 from tetris import (  # noqa: E402
     TetrisGame, Piece, GameState, COLS, ROWS, SHAPES, COLORS,
+    _load_font, _resolve_cjk_font_name,
 )
 
 
@@ -302,6 +303,31 @@ class TestHighScore:
         game.high_score = 0
         loaded = game._load_high_score()
         assert loaded == 12345
+
+
+# ---------- Font (cross-platform CJK) ----------
+
+class TestFont:
+    def test_load_font_returns_font_object(self):
+        import pygame
+        f = _load_font(24)
+        # Either pygame.font.Font (default) or pygame.font.SysFont (returns Font too)
+        assert isinstance(f, pygame.font.Font)
+
+    def test_load_font_renders_ascii(self):
+        f = _load_font(24)
+        surf = f.render("TETRIS", True, (255, 255, 255))
+        # Non-empty rendering
+        w, h = surf.get_size()
+        assert w > 0 and h > 0
+
+    def test_load_font_does_not_raise_on_bold(self):
+        f = _load_font(36, bold=True)
+        assert f is not None
+
+    def test_resolve_cjk_font_returns_str_or_none(self):
+        result = _resolve_cjk_font_name()
+        assert result is None or isinstance(result, str)
 
 
 if __name__ == "__main__":

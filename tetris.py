@@ -102,6 +102,69 @@ class GameState:
     GAME_OVER = "game_over"
 
 
+# --- Cross-platform CJK font resolution ---
+# Try platform-appropriate CJK fonts; fall back to pygame default if none found.
+# `match_font` returns None when nothing matches, so we can probe cheaply.
+_FONT_CANDIDATES_BY_PLATFORM = {
+    "Darwin": [  # macOS
+        "stheitimedium", "stheiti", "pingfangsc",
+        "hiraginosansgb", "heitisc", "applesdgothicneo",
+    ],
+    "Windows": [
+        "microsoftyahei", "microsoftyaheiui", "simhei", "simsun", "msyh",
+    ],
+    "Linux": [
+        "notosanscjksc", "notosansmonocjksc", "wqymicrohei",
+        "wqyzenhei", "sourcehansanssc", "droidsansfallback",
+    ],
+}
+
+_resolved_cjk_font_name = None  # cached after first successful resolution
+
+
+def _resolve_cjk_font_name():
+    """Return a system font name that supports CJK on this platform, or None.
+
+    Result is cached. If no candidate is installed, returns None and callers
+    should fall back to pygame's default font (which still renders ASCII).
+    """
+    global _resolved_cjk_font_name
+    if _resolved_cjk_font_name is not None:
+        return _resolved_cjk_font_name or None  # "" sentinel for "checked, none"
+
+    import platform
+    system = platform.system()
+    candidates = _FONT_CANDIDATES_BY_PLATFORM.get(system, [])
+    # Always also try the cross-platform Noto/Source Han names as last resort
+    candidates = candidates + ["notosanscjksc", "sourcehansanssc", "arialunicodems"]
+
+    for name in candidates:
+        try:
+            if pygame.font.match_font(name):
+                _resolved_cjk_font_name = name
+                return name
+        except Exception:
+            continue
+
+    _resolved_cjk_font_name = ""  # mark as "checked, nothing found"
+    return None
+
+
+def _load_font(size, bold=False):
+    """Load a CJK-capable font at the given size, falling back gracefully.
+
+    Order: resolved platform CJK font → pygame default font (ASCII-only).
+    """
+    name = _resolve_cjk_font_name()
+    if name:
+        try:
+            return pygame.font.SysFont(name, size, bold=bold)
+        except Exception:
+            pass
+    # Fallback: pygame default — works everywhere, may not render CJK glyphs
+    return pygame.font.Font(None, size)
+
+
 class Button:
     def __init__(self, x, y, width, height, text, callback):
         self.rect = pygame.Rect(x, y, width, height)
@@ -162,9 +225,9 @@ class TetrisGame:
         self.screen = pygame.display.set_mode((SCREEN_WIDTH, SCREEN_HEIGHT))
         pygame.display.set_caption("Tetris")
         self.clock = pygame.time.Clock()
-        self.font_large = pygame.font.SysFont("stheitimedium", 36, bold=True)
-        self.font_medium = pygame.font.SysFont("stheitimedium", 24)
-        self.font_small = pygame.font.SysFont("stheitimedium", 18)
+        self.font_large = _load_font(36, bold=True)
+        self.font_medium = _load_font(24)
+        self.font_small = _load_font(18)
 
         # Load sounds
         self.sounds = {}
@@ -702,7 +765,7 @@ class TetrisGame:
             (240, 0, 0), (0, 240, 240), (0, 240, 0),
         ]
 
-        font_title = pygame.font.SysFont("stheitimedium", 72, bold=True)
+        font_title = _load_font(72, bold=True)
         total_width = sum(font_title.size(ch)[0] for ch in title_letters)
         letter_x = board_center_x - total_width // 2
 

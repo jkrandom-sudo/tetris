@@ -175,7 +175,7 @@ tetris-game/
 - [ ] T-Spin Triple 与 Mini T-Spin 区分
 - [ ] B2B（Back-to-Back）连击加分
 - [ ] Combo 系统
-- [ ] 多平台中文字体回退（当前硬编码 macOS `stheitimedium`）
+- [x] 多平台中文字体回退（按 macOS / Windows / Linux 自动探测候选字体；ASCII 总能渲染）
 - [ ] 抽离 input / logic / render 为独立模块
 - [x] 增加 `tetris.py` 的单元测试（已完成 — 32 个测试，含 Hold/T-Spin/Level-up 回归）
 
