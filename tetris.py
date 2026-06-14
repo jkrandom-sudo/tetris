@@ -327,6 +327,7 @@ class TetrisGame:
         # Check for T-Spin before locking
         t_spin = self._is_t_spin()
         lines_before = self.lines_cleared
+        old_level = self.level  # capture BEFORE _clear_lines updates level
 
         for x, y in self.current.cells():
             if 0 <= y < ROWS and 0 <= x < COLS:
@@ -350,9 +351,6 @@ class TetrisGame:
         elif lines_this_clear > 0:
             self._play_sound("line_clear")
 
-        # Check level up
-        old_level = self.level
-
         # Level up sound (check before game_over so it can play)
         if self.level > old_level:
             self._play_sound("level_up")
@@ -361,6 +359,7 @@ class TetrisGame:
         self.next_piece = self._new_piece()
         self.lock_delay = 0
         self.can_hold = True  # Reset hold ability on new piece
+        self.hold_used = False  # Reset per-piece hold lock so player can hold again
         if not self._valid_position(self.current.cells()):
             self.state = GameState.GAME_OVER
             self._play_sound("game_over")
@@ -734,6 +733,50 @@ class TetrisGame:
             self.screen.blit(surf, rect)
             y += 24
 
+    def _draw_piece_preview(self, piece, box_x, box_y, box_w, box_h, dim=False):
+        """Draw a centered piece preview inside a bordered box.
+
+        piece may be a Piece (uses .type) or None (draws empty box).
+        If dim=True, overlays a translucent layer (used for HOLD when locked).
+        """
+        box = pygame.Rect(box_x, box_y, box_w, box_h)
+        pygame.draw.rect(self.screen, BLACK, box)
+        pygame.draw.rect(self.screen, GRAY, box, 1)
+
+        if piece is None:
+            return
+
+        cells = SHAPES[piece.type][0]
+        min_x = min(c[0] for c in cells)
+        max_x = max(c[0] for c in cells)
+        min_y = min(c[1] for c in cells)
+        max_y = max(c[1] for c in cells)
+        cell_px = 25
+        pw = (max_x - min_x + 1) * cell_px
+        ph = (max_y - min_y + 1) * cell_px
+        ox = box_x + (box_w - pw) // 2
+        oy = box_y + (box_h - ph) // 2
+
+        color = COLORS[piece.type]
+        highlight = tuple(min(255, c + 40) for c in color)
+        shadow = tuple(max(0, c - 40) for c in color)
+        for cx, cy in cells:
+            rect = pygame.Rect(
+                ox + (cx - min_x) * cell_px,
+                oy + (cy - min_y) * cell_px,
+                cell_px, cell_px,
+            )
+            pygame.draw.rect(self.screen, color, rect)
+            pygame.draw.line(self.screen, highlight, rect.topleft, rect.topright, 1)
+            pygame.draw.line(self.screen, highlight, rect.topleft, rect.bottomleft, 1)
+            pygame.draw.line(self.screen, shadow, rect.bottomleft, rect.bottomright, 1)
+            pygame.draw.line(self.screen, shadow, rect.topright, rect.bottomright, 1)
+
+        if dim:
+            overlay = pygame.Surface((box_w, box_h), pygame.SRCALPHA)
+            overlay.fill((0, 0, 0, 100))
+            self.screen.blit(overlay, (box_x, box_y))
+
     def _draw_sidebar(self):
         sidebar_x = COLS * CELL_SIZE + 15
 
@@ -742,69 +785,20 @@ class TetrisGame:
         self.screen.blit(hold_label, (sidebar_x, 20))
 
         # Hold piece preview box
-        hold_box = pygame.Rect(sidebar_x, 50, SIDEBAR_WIDTH - 30, 80)
-        pygame.draw.rect(self.screen, BLACK, hold_box)
-        pygame.draw.rect(self.screen, GRAY, hold_box, 1)
-
-        if self.hold_piece:
-            hold_cells = SHAPES[self.hold_piece.type][0]
-            min_x = min(c[0] for c in hold_cells)
-            max_x = max(c[0] for c in hold_cells)
-            min_y = min(c[1] for c in hold_cells)
-            max_y = max(c[1] for c in hold_cells)
-            pw = (max_x - min_x + 1) * 25
-            ph = (max_y - min_y + 1) * 25
-            ox = sidebar_x + (SIDEBAR_WIDTH - 30 - pw) // 2
-            oy = 50 + (80 - ph) // 2
-            for cx, cy in hold_cells:
-                rect = pygame.Rect(
-                    ox + (cx - min_x) * 25, oy + (cy - min_y) * 25, 25, 25
-                )
-                color = COLORS[self.hold_piece.type]
-                pygame.draw.rect(self.screen, color, rect)
-                highlight = tuple(min(255, c + 40) for c in color)
-                shadow = tuple(max(0, c - 40) for c in color)
-                pygame.draw.line(self.screen, highlight, rect.topleft, rect.topright, 1)
-                pygame.draw.line(self.screen, highlight, rect.topleft, rect.bottomleft, 1)
-                pygame.draw.line(self.screen, shadow, rect.bottomleft, rect.bottomright, 1)
-                pygame.draw.line(self.screen, shadow, rect.topright, rect.bottomright, 1)
-
-            if self.hold_used:
-                dim = pygame.Surface((SIDEBAR_WIDTH - 30, 80), pygame.SRCALPHA)
-                dim.fill((0, 0, 0, 100))
-                self.screen.blit(dim, (sidebar_x, 50))
+        self._draw_piece_preview(
+            piece=self.hold_piece, box_x=sidebar_x, box_y=50,
+            box_w=SIDEBAR_WIDTH - 30, box_h=80, dim=self.hold_used,
+        )
 
         # Next piece label
         label = self.font_medium.render("NEXT", True, WHITE)
         self.screen.blit(label, (sidebar_x, 145))
 
         # Next piece preview box
-        preview_box = pygame.Rect(sidebar_x, 175, SIDEBAR_WIDTH - 30, 80)
-        pygame.draw.rect(self.screen, BLACK, preview_box)
-        pygame.draw.rect(self.screen, GRAY, preview_box, 1)
-
-        if self.next_piece:
-            preview_cells = SHAPES[self.next_piece.type][0]
-            min_x = min(c[0] for c in preview_cells)
-            max_x = max(c[0] for c in preview_cells)
-            min_y = min(c[1] for c in preview_cells)
-            max_y = max(c[1] for c in preview_cells)
-            pw = (max_x - min_x + 1) * 25
-            ph = (max_y - min_y + 1) * 25
-            ox = sidebar_x + (SIDEBAR_WIDTH - 30 - pw) // 2
-            oy = 175 + (80 - ph) // 2
-            for cx, cy in preview_cells:
-                rect = pygame.Rect(
-                    ox + (cx - min_x) * 25, oy + (cy - min_y) * 25, 25, 25
-                )
-                color = COLORS[self.next_piece.type]
-                pygame.draw.rect(self.screen, color, rect)
-                highlight = tuple(min(255, c + 40) for c in color)
-                shadow = tuple(max(0, c - 40) for c in color)
-                pygame.draw.line(self.screen, highlight, rect.topleft, rect.topright, 1)
-                pygame.draw.line(self.screen, highlight, rect.topleft, rect.bottomleft, 1)
-                pygame.draw.line(self.screen, shadow, rect.bottomleft, rect.bottomright, 1)
-                pygame.draw.line(self.screen, shadow, rect.topright, rect.bottomright, 1)
+        self._draw_piece_preview(
+            piece=self.next_piece, box_x=sidebar_x, box_y=175,
+            box_w=SIDEBAR_WIDTH - 30, box_h=80,
+        )
 
         # Score / High Score / Level / Lines
         y_offset = 280

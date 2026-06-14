@@ -118,16 +118,13 @@ python3 generate_sounds.py
 
 ```bash
 pip install pytest
-pytest test_game.py -v
+pytest -v                      # 运行全部测试（推荐）
+pytest test_game.py -v         # 仅终端版
+pytest test_tetris.py -v       # 仅图形版（headless，自动设置 SDL dummy）
 ```
 
-`test_game.py` 覆盖终端版（`game.py`）的核心逻辑：
-- 初始化与状态
-- 移动 / 旋转 / 碰撞
-- 单 / 双 / 三 / 四消计分与升级
-- 7-bag 不重复保证
-- Ghost 计算
-- 暂停 / 游戏结束 / 边界情况
+- `test_game.py` — 覆盖终端版（`game.py`）：初始化 / 移动 / 碰撞 / 消行计分 / 升级 / 7-bag / Ghost / 暂停 / 边界。
+- `test_tetris.py` — 覆盖图形版（`tetris.py`）：初始化 / 移动 / 旋转 / 消行计分 / 升级 / 7-bag / Ghost / **Hold（含一次性 bug 回归测试）** / **T-Spin 检测** / **Level-up 音效触发回归** / 高分持久化。
 
 ---
 
@@ -138,6 +135,7 @@ tetris-game/
 ├── tetris.py              # 图形版（Pygame，~900 行单文件实现）
 ├── game.py                # 终端版（curses）
 ├── test_game.py           # 针对 game.py 的 pytest 测试
+├── test_tetris.py         # 针对 tetris.py 的 pytest 测试（headless）
 ├── generate_sounds.py     # 音效生成脚本（纯 stdlib）
 ├── sounds/                # 9 个生成好的 WAV 音效
 │   ├── move.wav / rotate.wav / soft_drop.wav / hard_drop.wav
@@ -179,7 +177,7 @@ tetris-game/
 - [ ] Combo 系统
 - [ ] 多平台中文字体回退（当前硬编码 macOS `stheitimedium`）
 - [ ] 抽离 input / logic / render 为独立模块
-- [ ] 增加 `tetris.py` 的单元测试
+- [x] 增加 `tetris.py` 的单元测试（已完成 — 32 个测试，含 Hold/T-Spin/Level-up 回归）
 
 ---
 
