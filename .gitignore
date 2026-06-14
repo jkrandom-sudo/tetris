@@ -1,0 +1,28 @@
+# Python
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+.Python
+*.egg-info/
+.eggs/
+
+# Virtual environments
+venv/
+env/
+.venv/
+
+# py2app build artifacts
+build/
+dist/
+*.app
+
+# IDE / tools
+.idea/
+.vscode/
+.claude/
+*.swp
+.DS_Store
+
+# Local data
+*.log
