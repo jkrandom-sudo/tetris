@@ -24,5 +24,8 @@ dist/
 *.swp
 .DS_Store
 
+# Test
+.pytest_cache/
+
 # Local data
 *.log
