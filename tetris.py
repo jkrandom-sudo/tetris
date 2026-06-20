@@ -457,6 +457,8 @@ class TetrisGame:
         return ghost.y
 
     def _try_rotate(self, direction=1):
+        if direction not in (1, -1):
+            return False
         new_cells, new_rot = self.current.rotated_cells(direction)
         kick_table = WALL_KICKS.get(
             "I" if self.current.type == "I" else "default"
@@ -565,7 +567,8 @@ class TetrisGame:
                     continue
 
                 if event.key == pygame.K_p:
-                    self._toggle_pause()
+                    if self.state == GameState.PLAYING:
+                        self._toggle_pause()
                     continue
 
                 if event.key == pygame.K_ESCAPE:
